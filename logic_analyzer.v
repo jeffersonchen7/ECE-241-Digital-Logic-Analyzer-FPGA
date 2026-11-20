@@ -353,9 +353,9 @@ module test_gen (clk, reset_n, test_out);
 
     assign test_out[0] = (mod5_cnt < 3'd2);     // 10 MHz
     assign test_out[1] = (mod10_cnt < 4'd5);    // 5 MHz
-    assign test_out[5:2] = free_cnt[5:2];       // 4-bit counter
+    assign test_out[5:2] = free_cnt[5:2];       // 4 bit counter
     assign test_out[6] = (free_cnt == 6'd15);   // periodic pulse
-    assign test_out[7] = free_cnt[5];           // ~781 kHz square wave
+    assign test_out[7] = free_cnt[5];           // approx a 781 kHz square wave
 endmodule
 
 
