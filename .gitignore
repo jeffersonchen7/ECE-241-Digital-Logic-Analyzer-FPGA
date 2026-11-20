@@ -1,0 +1,31 @@
+# Quartus generated files
+db/
+incremental_db/
+output_files/
+greybox_tmp/
+simulation/
+*.qws
+*_description.txt
+*.rpt
+*.summary
+*.smsg
+*.pin
+*.done
+*.jdi
+*.sld
+*.sopcinfo
+*.sof
+*.pof
+
+# ModelSim generated files
+work/
+sim/work/
+vsim.wlf
+transcript
+modelsim.ini
+*.vstf
+
+# Temporary export scratch
+docs/_chrome/
+docs/_edge/
+docs/_t.html
