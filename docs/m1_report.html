@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Milestone 1 - Logic Analyzer</title>
+<style>
+  @page { size: letter; margin: 0.9in; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.4; margin: 0; }
+  h2 { font-size: 13pt; margin: 0 0 8pt 0; }
+  h2.next { margin-top: 18pt; }
+  ul { margin: 0; padding-left: 18pt; }
+  li { margin-bottom: 6pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
+  th, td { border: 1px solid #000; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  th { font-weight: bold; }
+  td:first-child { white-space: nowrap; }
+  img { width: 100%; display: block; }
+  .fig { page-break-inside: avoid; margin-top: 18pt; }
+  .cap { text-align: center; font-size: 10pt; margin-top: 6pt; }
+  .code { page-break-before: always; }
+  .code h3 { font-size: 11pt; margin: 0 0 6pt 0; }
+  pre { font-family: Consolas, "Courier New", monospace; font-size: 7.5pt; line-height: 1.2; white-space: pre-wrap; margin: 0; }
+</style>
+</head>
+<body>
+
+<p style="margin: 0 0 14pt 0;">This code is for the 8-channel logic analyzer on the DE1-SoC. The VGA display and user interface are not implemented yet, so captured data is read out on the LEDs for now.</p>
+
+<h2>1. Implemented Modules (logic_analyzer.v, sim/tb_logic_analyzer.v)</h2>
+<ul>
+  <li><b>sync_2ff</b>: Two-stage flip-flop synchronizer clocked on CLOCK_50 that delays the asynchronous 8-channel probe inputs by 2 clock cycles</li>
+  <li><b>rate_divider</b>: Synchronous CLOCK_50 counter that can be divided into slower clock cycles to reduce the sample rate. Basically like the counter in lab 4.</li>
+  <li><b>trigger_unit</b>: Waits for the first "trigger" (rising or falling edge or pattern) to tell the program to start recording data. Essentially tells the program to skip the leading 1s or 0s.</li>
+  <li><b>capture_fsm</b> &amp; <b>ram_8kx8</b>: 4-state FSM that waits for the trigger unit and "arm", before it then starts recording the readings into the ram. Records 8,192 × 8-bit samples into dual-port synchronous RAM.</li>
+  <li><b>test_gen</b> &amp; <b>live_timer</b>: Built-in 8-channel test generator (10 MHz, 5 MHz, 4-bit counter, 1-clock pulse, ~781 kHz) plus a 60 Hz (833,333-tick) auto-refresh timer for live mode.</li>
+</ul>
+
+<h2 class="next">2. Board Inputs and Outputs</h2>
+<table>
+  <tr><th>Signal</th><th>Direction</th><th>Description</th></tr>
+  <tr><td>CLOCK_50</td><td>Input</td><td>50 MHz system clock driving all sequential logic</td></tr>
+  <tr><td>KEY[0]</td><td>Input</td><td>Active-low synchronous reset (reset_n)</td></tr>
+  <tr><td>KEY[1]</td><td>Input</td><td>Snapshot arm button (triggers one 8,192-sample capture when SW[7] = 0)</td></tr>
+  <tr><td>SW[9]</td><td>Input</td><td>Signal source select (1 = internal test_gen, 0 = external GPIO_0[7:0])</td></tr>
+  <tr><td>SW[8]</td><td>Input</td><td>Sample rate select (0 = 50 MSPS, 1 = 10 MSPS)</td></tr>
+  <tr><td>SW[7]</td><td>Input</td><td>Capture mode (0 = manual Snapshot via KEY[1], 1 = ~60 Hz Live Continuous)</td></tr>
+  <tr><td>SW[6:0]</td><td>Input</td><td>7-bit RAM read address (0..127) to inspect stored bytes</td></tr>
+  <tr><td>GPIO_0[7:0]</td><td>Input</td><td>External 8-channel digital probe inputs</td></tr>
+  <tr><td>GPIO_1[7:0]</td><td>Output</td><td>Outputs test_gen waveforms physically on Header 1</td></tr>
+  <tr><td>LEDR[7:0]</td><td>Output</td><td>Displays the 8-bit captured byte (rd_data) stored at mem[SW[6:0]]</td></tr>
+  <tr><td>LEDR[8] / LEDR[9]</td><td>Output</td><td>Status indicators: LEDR[8] = busy, LEDR[9] = done</td></tr>
+</table>
+
+<div class="fig">
+  <h2>3. Block Diagram</h2>
+  <img src="m1_block_diagram.png" alt="Milestone 1 block diagram">
+  <div class="cap">Figure 1: Milestone 1 logic analyzer block diagram</div>
+</div>
+
+<div class="fig">
+  <h2>4. Simulation Waveform</h2>
+  <img src="m1_waveform.png" alt="ModelSim waveform">
+  <div class="cap">Figure 2: ModelSim simulation of tb_logic_analyzer</div>
+</div>
+
+<!--CODE-->
+
+</body>
+</html>

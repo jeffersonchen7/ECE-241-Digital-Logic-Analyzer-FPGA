@@ -11,68 +11,46 @@ module top (CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1);
     reg [2:0] rate_sel;
     reg arm_sig;
     wire live_refresh;
+    wire [12:0] rd_addr;
     wire [7:0] rd_data;
     wire trig_fire, busy, done;
     wire [1:0] state_dbg;
 
-    // SW[9] = 1: internal test_gen loopback (no jumper wires needed)
-    // SW[9] = 0: physical GPIO_0[7:0] probe pins
-    // SW[8] = 0: 50 MSPS, SW[8] = 1: 10 MSPS
-    // SW[7] = 1: live continuous mode (60 Hz), SW[7] = 0: snapshot mode (KEY[1])
     always @(*) begin
-        if (SW[9])
+        if (SW[9]) // sample type 
             probes = test_out;
         else
             probes = GPIO_0[7:0];
 
-        if (SW[8])
+        if (SW[8]) // select sample rate
             rate_sel = 3'd2;
         else
             rate_sel = 3'd0;
 
-        if (SW[7])
+        if (SW[7]) // live or snapshot viewing
             arm_sig = live_refresh;
         else
             arm_sig = ~KEY[1];
     end
 
-    assign GPIO_1 = {28'd0, test_out};
+    assign GPIO_1[35:8] = 28'd0;
+    assign GPIO_1[7:0]  = test_out;
 
-    // Simple LEDR readout before VGA is added:
-    // SW[6:0] selects RAM slot 0..127, LEDR[7:0] shows captured byte
     assign LEDR[7:0] = rd_data;
-    assign LEDR[8] = busy;
-    assign LEDR[9] = done;
+    assign LEDR[8] = busy; // still filling
+    assign LEDR[9] = done; // done filling
 
-    test_gen u_gen (
-        .clk(CLOCK_50),
-        .reset_n(KEY[0]),
-        .test_out(test_out)
-    );
+    assign rd_addr[12:7] = 6'd0;
+    assign rd_addr[6:0]  = SW[6:0];
 
-    live_timer u_live (
-        .clk(CLOCK_50),
-        .reset_n(KEY[0]),
-        .enable(SW[7]),
-        .refresh_pulse(live_refresh)
-    );
+    test_gen u_gen (CLOCK_50, KEY[0], test_out);
+    live_timer u_live (CLOCK_50, KEY[0], SW[7], live_refresh);
 
     logic_analyzer_core u_core (
-        .clk(CLOCK_50),
-        .reset_n(KEY[0]),
-        .probes_in(probes),
-        .arm(arm_sig),
-        .rate_sel(rate_sel),
-        .trig_mode(2'd0),               // rising edge on ch0
-        .trig_ch(3'd0),
-        .trig_mask(8'd0),
-        .trig_val(8'd0),
-        .rd_addr({6'd0, SW[6:0]}),
-        .rd_data(rd_data),
-        .trig_fire(trig_fire),
-        .busy(busy),
-        .done(done),
-        .state_dbg(state_dbg)
+        CLOCK_50, KEY[0], probes, arm_sig, rate_sel,
+        2'd0, // rising edge on ch0
+        3'd0, 8'd0, 8'd0, rd_addr, rd_data,
+        trig_fire, busy, done, state_dbg
     );
 endmodule
 
@@ -82,67 +60,25 @@ module logic_analyzer_core (
     trig_mask, trig_val, rd_addr, rd_data, trig_fire, busy, done, state_dbg
 );
     input clk, reset_n, arm;
-    input [7:0] probes_in, trig_mask, trig_val;
-    input [2:0] rate_sel, trig_ch;
+    input [7:0] probes_in, trig_mask, trig_val; // pattern trigger channels, values for those channels to trigger
     input [1:0] trig_mode;
+    input [2:0] rate_sel, trig_ch;  
     input [12:0] rd_addr;
 
     output [7:0] rd_data;
     output trig_fire, busy, done;
-    output [1:0] state_dbg;
+    output [1:0] state_dbg; // tracks fsm state
 
     wire sample_en;
     wire [7:0] synced_sample;
     wire wr_en;
     wire [12:0] wr_addr;
 
-    rate_divider u_rate_div (
-        .clk(clk),
-        .reset_n(reset_n),
-        .rate_sel(rate_sel),
-        .sample_en(sample_en)
-    );
-
-    sync_2ff u_sync (
-        .clk(clk),
-        .reset_n(reset_n),
-        .async_in(probes_in),
-        .sync_out(synced_sample)
-    );
-
-    trigger_unit u_trig (
-        .clk(clk),
-        .reset_n(reset_n),
-        .sample_en(sample_en),
-        .sample(synced_sample),
-        .trig_mode(trig_mode),
-        .trig_ch(trig_ch),
-        .trig_mask(trig_mask),
-        .trig_val(trig_val),
-        .trig_fire(trig_fire)
-    );
-
-    capture_fsm u_cap_fsm (
-        .clk(clk),
-        .reset_n(reset_n),
-        .arm(arm),
-        .sample_en(sample_en),
-        .trig_fire(trig_fire),
-        .wr_en(wr_en),
-        .wr_addr(wr_addr),
-        .busy(busy),
-        .done(done),
-        .state_dbg(state_dbg)
-    );
-
-    ram_8kx8 u_ram (
-        .clk(clk),
-        .wr_en(wr_en),
-        .wr_addr(wr_addr),
-        .wr_data(synced_sample),
-        .rd_addr(rd_addr),
-        .rd_data(rd_data)
-    );
+    rate_divider u_rate_div (clk, reset_n, rate_sel, sample_en);
+    sync_2ff u_sync (clk, reset_n, probes_in, synced_sample);
+    trigger_unit u_trig (clk, reset_n, sample_en, synced_sample, trig_mode, trig_ch, trig_mask, trig_val, trig_fire);
+    capture_fsm u_cap_fsm (clk, reset_n, arm, sample_en, trig_fire, wr_en, wr_addr, busy, done, state_dbg);
+    ram_8kx8 u_ram (clk, wr_en, wr_addr, synced_sample, rd_addr, rd_data);
 endmodule
 
 

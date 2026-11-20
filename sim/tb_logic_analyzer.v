@@ -1,10 +1,3 @@
-// -----------------------------------------------------------------------------
-// tb_logic_analyzer.v
-// Self-checking ModelSim testbench for logic_analyzer_core + test_gen.
-// Tests:
-//   1. 50 MSPS rising-edge trigger on ch0 (10 MHz test signal)
-//   2. 10 MSPS masked pattern trigger (ch[5:2] == 4'hA)
-// -----------------------------------------------------------------------------
 `timescale 1ns/1ps
 
 module tb_logic_analyzer;
