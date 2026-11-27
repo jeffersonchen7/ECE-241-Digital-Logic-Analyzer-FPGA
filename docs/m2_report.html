@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Milestone 2 - Logic Analyzer VGA</title>
+<style>
+  @page { size: letter; margin: 0.9in; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #000; background: #fff; line-height: 1.4; margin: 0; }
+  h2 { font-size: 13pt; margin: 0 0 8pt 0; }
+  h2.next { margin-top: 18pt; }
+  p { margin: 0 0 10pt 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
+  th, td { border: 1px solid #000; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  th { font-weight: bold; }
+  img { width: 100%; display: block; }
+  .fig { page-break-inside: avoid; margin-top: 18pt; }
+  .cap { text-align: center; font-size: 10pt; margin-top: 6pt; }
+  .code { margin-top: 14pt; }
+  .code h3 { font-size: 11pt; margin: 0 0 6pt 0; }
+  pre { font-family: Consolas, "Courier New", monospace; font-size: 7.5pt; line-height: 1.2; white-space: pre-wrap; margin: 0; }
+</style>
+</head>
+<body>
+
+<h2>Digital Logic Analyzer: VGA Display</h2>
+<p>Implemented the VGA part of this project using direct scanline 640×480, 60 Hz VGA in vga_display.v. Added a vga_timing module running at 25 MHz (dividing CLOCK_50 by 2) for HSYNC, VSYNC, and blanking, and a vga_renderer module that reads directly from the 8K×8 RAM on the fly without needing a framebuffer. It draws the 8 (colour coded) waveforms, vertical edges, grid lines, trigger marker, status box, and leaves the bottom half of the screen open for Khalil's analog scope. I also wired the DE1-SoC VGA pins into top and added zoom and pan controls: SW[1:0] zooms up to 8x, SW[6:2] lets you pan manually across the capture in 128-sample steps, and SW[7] auto refreshes the captures at ~60 Hz in live mode (with state_dbg on LEDR[1:0] alongside busy and done). I verified a full 640×480 frame in ModelSim using sim/tb_vga.v with 0 errors.</p>
+
+<h2 class="next">1. Implemented Modules (vga_display.v, logic_analyzer.v, sim/tb_vga.v)</h2>
+<ul style="margin: 0; padding-left: 18pt;">
+  <li style="margin-bottom: 6pt;"><b>vga_timing</b>: This generates signals the monitor needs. CLOCK_50 is too fast for 640x480, so it just toggles a bit every clock to get 25 MHz and only steps on that. Two counters keep track of where the "beam" is: h_cnt goes across a line (800 counts, 640 you can see) and v_cnt goes down the screen (525 lines, 480 you can see). HSYNC and VSYNC get pulled low at the right counts so the monitor knows when to start a new line or a new frame, and BLANK_N is low whenever we're off the visible part.</li>
+  <li style="margin-bottom: 6pt;"><b>vga_renderer</b>: This is the part that draws everything onto the monitor. There's no framebuffer, it just figures out what colour each pixel should be right when the screen gets to it. The x position tells it which sample to read out of the RAM (with zoom and pan applied), and the y position tells it which channel's lane it's in, since each channel gets its own 32 pixel tall strip in the top half. If the bit is 1 it draws near the top of the strip, if it's 0 near the bottom, and if it's different from the sample one pixel before, it draws the vertical line joining them. If the pixel isn't on a waveform it's either a grid line, the trigger marker on the left edge, the line separating off the analog half, the little status box in the corner (grey = idle, orange = busy, green = done), or just background.</li>
+  <li style="margin-bottom: 6pt;"><b>top</b> (logic_analyzer.v): Left it mostly the same as Milestone 1, except the VGA modules are hooked up to the board's VGA pins now. Since the renderer is what reads the RAM now, SW[6:0] doesn't pick the address anymore, so I reused them for zoom (SW[1:0]) and pan (SW[6:2]). LEDR[1:0] now show which state the capture FSM is in, so you can tell what it's doing from the board.</li>
+</ul>
+
+<h2 class="next">2. Board Inputs and Outputs</h2>
+<table>
+  <tr><th style="width: 24%;">Signal</th><th style="width: 12%;">Direction</th><th>Description</th></tr>
+  <tr><td>CLOCK_50</td><td>Input</td><td>50 MHz clock, divided by 2 for the 25 MHz VGA pixel clock</td></tr>
+  <tr><td>KEY[0]</td><td>Input</td><td>Reset (active-low)</td></tr>
+  <tr><td>KEY[1]</td><td>Input</td><td>Take one snapshot capture (when SW[7] = 0)</td></tr>
+  <tr><td>SW[9]</td><td>Input</td><td>Source select (1 = built-in test_gen, 0 = GPIO_0[7:0] probes)</td></tr>
+  <tr><td>SW[8]</td><td>Input</td><td>Sample rate (0 = 50 MSPS, 1 = 10 MSPS)</td></tr>
+  <tr><td>SW[7]</td><td>Input</td><td>Capture mode (0 = snapshot on KEY[1], 1 = live, re-captures at ~60 Hz)</td></tr>
+  <tr><td>SW[6:2]</td><td>Input</td><td>Pan across the capture in 128-sample steps</td></tr>
+  <tr><td>SW[1:0]</td><td>Input</td><td>Zoom (00 = 1x, 01 = 2x, 10 = 4x, 11 = 8x)</td></tr>
+  <tr><td>GPIO_0[7:0]</td><td>Input</td><td>8 digital probe inputs</td></tr>
+  <tr><td>GPIO_1[7:0]</td><td>Output</td><td>test_gen signals, for looping back to the probes</td></tr>
+  <tr><td>LEDR[1:0]</td><td>Output</td><td>Capture FSM state (state_dbg)</td></tr>
+  <tr><td>LEDR[8] / LEDR[9]</td><td>Output</td><td>Busy (capturing) / done</td></tr>
+  <tr><td>VGA_R/G/B, VGA_HS, VGA_VS, VGA_BLANK_N, VGA_SYNC_N, VGA_CLK</td><td>Output</td><td>640 × 480 at 60 Hz: 8 colour-coded traces in the top half, bottom half left for the analog scope</td></tr>
+</table>
+
+<div class="fig">
+  <h2>3. Simulation Waveform</h2>
+  <p>tb_vga runs the whole design with the built-in test signals: it takes one snapshot, waits until it's done, then watches one full frame. The screenshot is the start of line 22, which is the row where ch0's high level gets drawn. At 1x zoom rd_addr just follows h_cnt, one sample per pixel, so the colour flips between ch0's green (0, 255, 140) when ch0 is high and the background (10, 14, 22) when it's low. Over the whole frame the testbench also checks the sync pulse lengths, that nothing gets drawn while blanked, that there are exactly 640x480 visible pixels, and a few specific pixels (status box, divider, ch0 trace). It finished with 0 errors.</p>
+  <img src="m2_waveform.png" alt="ModelSim waveform of tb_vga">
+  <div class="cap">Figure 7: ModelSim simulation of tb_vga (start of visible line 22)</div>
+</div>
+
+<!--CODE-->
+
+</body>
+</html>

@@ -1,10 +1,15 @@
-module top (CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1);
+module top (
+    CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1,
+    VGA_R, VGA_G, VGA_B, VGA_HS, VGA_VS, VGA_CLK, VGA_BLANK_N, VGA_SYNC_N
+);
     input CLOCK_50;
     input [3:0] KEY;
     input [9:0] SW;
     input [35:0] GPIO_0;
     output [9:0] LEDR;
     output [35:0] GPIO_1;
+    output [7:0] VGA_R, VGA_G, VGA_B;
+    output VGA_HS, VGA_VS, VGA_CLK, VGA_BLANK_N, VGA_SYNC_N;
 
     wire [7:0] test_out;
     reg [7:0] probes;
@@ -15,6 +20,9 @@ module top (CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1);
     wire [7:0] rd_data;
     wire trig_fire, busy, done;
     wire [1:0] state_dbg;
+    wire pix_en;
+    wire [9:0] h_cnt, v_cnt;
+    wire visible;
 
     always @(*) begin
         if (SW[9]) // sample type 
@@ -36,12 +44,10 @@ module top (CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1);
     assign GPIO_1[35:8] = 28'd0;
     assign GPIO_1[7:0]  = test_out;
 
-    assign LEDR[7:0] = rd_data;
+    assign LEDR[1:0] = state_dbg;
+    assign LEDR[7:2] = 6'd0;
     assign LEDR[8] = busy; // still filling
     assign LEDR[9] = done; // done filling
-
-    assign rd_addr[12:7] = 6'd0;
-    assign rd_addr[6:0]  = SW[6:0];
 
     test_gen u_gen (CLOCK_50, KEY[0], test_out);
     live_timer u_live (CLOCK_50, KEY[0], SW[7], live_refresh);
@@ -51,6 +57,17 @@ module top (CLOCK_50, KEY, SW, LEDR, GPIO_0, GPIO_1);
         2'd0, // rising edge on ch0
         3'd0, 8'd0, 8'd0, rd_addr, rd_data,
         trig_fire, busy, done, state_dbg
+    );
+
+    vga_timing u_vga_sync (
+        CLOCK_50, KEY[0], pix_en, h_cnt, v_cnt, visible,
+        VGA_CLK, VGA_HS, VGA_VS, VGA_BLANK_N, VGA_SYNC_N
+    );
+
+    vga_renderer u_vga_draw (
+        CLOCK_50, KEY[0], pix_en, h_cnt, v_cnt, visible,
+        rd_data, SW[6:2], SW[1:0], busy, done,
+        rd_addr, VGA_R, VGA_G, VGA_B
     );
 endmodule
 

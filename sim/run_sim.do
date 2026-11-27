@@ -1,6 +1,6 @@
 catch {quit -sim}
 vlib work
-vlog logic_analyzer.v sim/tb_logic_analyzer.v
+vlog logic_analyzer.v vga_display.v sim/tb_logic_analyzer.v
 vsim work.tb_logic_analyzer
 
 add wave -divider "Clock & Control"
