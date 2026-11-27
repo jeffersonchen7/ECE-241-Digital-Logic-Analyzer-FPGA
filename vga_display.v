@@ -69,7 +69,7 @@ endmodule
 
 module vga_renderer (
     clk, reset_n, pix_en, h_cnt, v_cnt, visible,
-    rd_data, pan_sel, zoom_sel, busy_flag, done_flag,
+    rd_data, pan_sel, zoom_sel,
     rd_addr, vga_r, vga_g, vga_b
 );
     input clk, reset_n, pix_en, visible;
@@ -77,7 +77,6 @@ module vga_renderer (
     input [7:0] rd_data;
     input [4:0] pan_sel;
     input [1:0] zoom_sel;
-    input busy_flag, done_flag;
 
     output [12:0] rd_addr;
     output [7:0] vga_r, vga_g, vga_b;
@@ -145,44 +144,14 @@ module vga_renderer (
                 wave_hit = 1'b1;
         end
 
-        next_r = 8'd0;
-        next_g = 8'd0;
-        next_b = 8'd0;
-
-        if (visible) begin
-            if (wave_hit) begin
-                case (ch)
-                    3'd0: begin next_r = 8'd0;   next_g = 8'd255; next_b = 8'd140; end
-                    3'd1: begin next_r = 8'd0;   next_g = 8'd210; next_b = 8'd255; end
-                    3'd2: begin next_r = 8'd255; next_g = 8'd220; next_b = 8'd60;  end
-                    3'd3: begin next_r = 8'd255; next_g = 8'd140; next_b = 8'd40;  end
-                    3'd4: begin next_r = 8'd220; next_g = 8'd120; next_b = 8'd255; end
-                    3'd5: begin next_r = 8'd100; next_g = 8'd180; next_b = 8'd255; end
-                    3'd6: begin next_r = 8'd255; next_g = 8'd90;  next_b = 8'd140; end
-                    3'd7: begin next_r = 8'd180; next_g = 8'd255; next_b = 8'd90;  end
-                    default: begin next_r = 8'd255; next_g = 8'd255; next_b = 8'd255; end
-                endcase
-            end else if ((v_cnt >= 10'd4) && (v_cnt < 10'd12) && (h_cnt >= 10'd12) && (h_cnt < 10'd28)) begin
-                if (done_flag) begin
-                    next_r = 8'd40; next_g = 8'd220; next_b = 8'd90;
-                end else if (busy_flag) begin
-                    next_r = 8'd240; next_g = 8'd170; next_b = 8'd30;
-                end else begin
-                    next_r = 8'd70; next_g = 8'd80; next_b = 8'd95;
-                end
-            end else if ((v_cnt == 10'd272) || (v_cnt == 10'd273)) begin
-                next_r = 8'd70; next_g = 8'd140; next_b = 8'd190;
-            end else if (in_digital && (ly == 5'd0)) begin
-                next_r = 8'd28; next_g = 8'd36; next_b = 8'd50;
-            end else if ((h_cnt == 10'd0) && (pan_sel == 5'd0) && in_digital) begin
-                next_r = 8'd170; next_g = 8'd55; next_b = 8'd55;
-            end else if (h_cnt[5:0] == 6'd0) begin
-                next_r = 8'd28; next_g = 8'd36; next_b = 8'd50;
-            end else if (v_cnt == 10'd376) begin
-                next_r = 8'd28; next_g = 8'd36; next_b = 8'd50;
-            end else begin
-                next_r = 8'd10; next_g = 8'd14; next_b = 8'd22;
-            end
+        if (visible && wave_hit) begin
+            next_r = 8'd0;
+            next_g = 8'd255;
+            next_b = 8'd0;
+        end else begin
+            next_r = 8'd0;
+            next_g = 8'd0;
+            next_b = 8'd0;
         end
     end
 

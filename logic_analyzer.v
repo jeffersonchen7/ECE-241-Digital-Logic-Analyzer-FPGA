@@ -66,7 +66,7 @@ module top (
 
     vga_renderer u_vga_draw (
         CLOCK_50, KEY[0], pix_en, h_cnt, v_cnt, visible,
-        rd_data, SW[6:2], SW[1:0], busy, done,
+        rd_data, SW[6:2], SW[1:0],
         rd_addr, VGA_R, VGA_G, VGA_B
     );
 endmodule

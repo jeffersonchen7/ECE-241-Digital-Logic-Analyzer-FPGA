@@ -84,38 +84,30 @@ module tb_vga;
                 ax = vis_cnt % 640;
                 ay = vis_cnt / 640;
 
-                // Status badge (done=1 -> green)
+                // Background pixels outside wave traces stay pure black
                 if (ax == 16 && ay == 8) begin
-                    if (VGA_R !== 8'd40 || VGA_G !== 8'd220 || VGA_B !== 8'd90) begin
-                        $display("ERROR: Status box expected (40,220,90), got (%0d,%0d,%0d)", VGA_R, VGA_G, VGA_B);
-                        errors = errors + 1;
-                    end
-                end
-
-                // Divider bar
-                if (ax == 100 && ay == 272) begin
-                    if (VGA_R !== 8'd70 || VGA_G !== 8'd140 || VGA_B !== 8'd190) begin
-                        $display("ERROR: Divider bar expected (70,140,190), got (%0d,%0d,%0d)", VGA_R, VGA_G, VGA_B);
+                    if (VGA_R !== 8'd0 || VGA_G !== 8'd0 || VGA_B !== 8'd0) begin
+                        $display("ERROR: Background expected (0,0,0), got (%0d,%0d,%0d)", VGA_R, VGA_G, VGA_B);
                         errors = errors + 1;
                     end
                 end
 
                 // ch0 waveform checks (1,1,0,0,0,1 starting at trigger x=0; ch0 lane y=16..47 -> high=22, low=40)
                 if (ay == 22 && (ax == 0 || ax == 2 || ax == 5)) begin
-                    if (VGA_R !== 8'd0 || VGA_G !== 8'd255 || VGA_B !== 8'd140) begin
-                        $display("ERROR: ch0 high/edge expected at x=%0d y=22, got (%0d,%0d,%0d)", ax, VGA_R, VGA_G, VGA_B);
+                    if (VGA_R !== 8'd0 || VGA_G !== 8'd255 || VGA_B !== 8'd0) begin
+                        $display("ERROR: ch0 green high/edge expected at x=%0d y=22, got (%0d,%0d,%0d)", ax, VGA_R, VGA_G, VGA_B);
                         errors = errors + 1;
                     end
                 end
                 if (ay == 22 && ax == 3) begin
-                    if (VGA_G == 8'd255) begin
-                        $display("ERROR: ch0 should be low at x=3 y=22");
+                    if (VGA_R !== 8'd0 || VGA_G !== 8'd0 || VGA_B !== 8'd0) begin
+                        $display("ERROR: ch0 should be black background at x=3 y=22, got (%0d,%0d,%0d)", VGA_R, VGA_G, VGA_B);
                         errors = errors + 1;
                     end
                 end
                 if (ay == 40 && ax == 3) begin
-                    if (VGA_R !== 8'd0 || VGA_G !== 8'd255 || VGA_B !== 8'd140) begin
-                        $display("ERROR: ch0 low rail expected at x=3 y=40, got (%0d,%0d,%0d)", ax, VGA_R, VGA_G, VGA_B);
+                    if (VGA_R !== 8'd0 || VGA_G !== 8'd255 || VGA_B !== 8'd0) begin
+                        $display("ERROR: ch0 green low rail expected at x=3 y=40, got (%0d,%0d,%0d)", ax, VGA_R, VGA_G, VGA_B);
                         errors = errors + 1;
                     end
                 end
